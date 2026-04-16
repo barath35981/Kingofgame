@@ -1,0 +1,162 @@
+<!<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dodge Blocks with Music 🎵</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #111;
+      color: white;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    canvas {
+      border: 2px solid #333;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+    #status {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Dodge Blocks with Music 🎮</h1>
+  <p>Use ← and → arrows to avoid the red blocks.</p>
+  <div id="status">Loading Pygame Web...</div>
+
+  <script type="module">
+    import init from "https://cdn.jsdelivr.net/npm/@pygame-web/pygbag@0.1.15/full.js";
+
+    const pythonCode = `
+import pygame
+import random
+
+pygame.init()
+pygame.mixer.init()
+
+# Screen
+WIDTH, HEIGHT = 400, 600
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+clock = pygame.time.Clock()
+
+# Colors
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+RED = (255, 0, 0)
+BLUE = (0, 100, 255)
+GREEN = (0, 200, 100)
+
+# Player
+player = pygame.Rect(WIDTH//2 - 20, HEIGHT - 60, 40, 40)
+player_speed = 5
+
+# Blocks
+block_width = 50
+block_speed = 3
+block_spawn_rate = 60
+blocks = []
+
+# Game state
+score = 0
+level = 1
+running = True
+game_over = False
+
+# Font
+font = pygame.font.SysFont("Arial", 24)
+
+# Background music (fake waveform, avoids external file)
+def create_beep_sound(duration=0.1, freq=440):
+    rate = 44100
+    n_samples = int(rate * duration)
+    buf = []
+    for i in range(n_samples):
+        t = 2 * 3.14159 * i * freq / rate
+        sample = 32767 * 0.5 * (1 + (i / n_samples) * 0.5)  # fade up
+        sample *= 0.5
+        buf.append(int(sample * 0.8 + 0.2 * random.random() * 65535))
+    return pygame.mixer.Sound(buffer=bytes(buf))
+
+# Simple "theme" noise (very basic background music)
+# In real game you'd use an MP3 / OGG, but Pygbag prefers bundled assets.
+theme_sound = create_beep_sound(0.5, 300)
+boom_sound = create_beep_sound(0.1, 100)
+
+# Play looped "music"
+pygame.mixer.music.set_volume(0.3)
+theme_sound.play(-1)  # loop forever
+
+while running:
+    clock.tick(60)
+    screen.fill(BLACK)
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+    if not game_over:
+        # Move player
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT] and player.left > 0:
+            player.x -= player_speed
+        if keys[pygame.K_RIGHT] and player.right < WIDTH:
+            player.x += player_speed
+
+        # Spawn blocks
+        if random.randint(1, block_spawn_rate) == 1:
+            x = random.randint(0, WIDTH - block_width)
+            blocks.append(pygame.Rect(x, -block_width, block_width, block_width))
+
+        # Move blocks
+        for b in blocks[:]:
+            b.y += block_speed
+            if b.colliderect(player):
+                game_over = True
+                boom_sound.play()
+            if b.top > HEIGHT:
+                blocks.remove(b)
+                score += 1
+
+        # Level up every 10 points
+        level = max(1, score // 10 + 1)
+        block_speed = 3 + level * 0.4
+        block_spawn_rate = max(15, 60 - level * 5)
+
+        # Draw
+        pygame.draw.rect(screen, BLUE, player)
+        for b in blocks:
+            pygame.draw.rect(screen, RED, b)
+
+        # Draw HUD
+        text_score = font.render(f"Score: {score}", True, WHITE)
+        text_level = font.render(f"Level: {level}", True, WHITE)
+        screen.blit(text_score, (10, 10))
+        screen.blit(text_level, (10, 40))
+
+    else:
+        # Game over screen
+        pygame.draw.rect(screen, BLACK, (0, 0, WIDTH, HEIGHT))
+        game_over_text = font.render("GAME OVER!", True, RED)
+        score_text = font.render(f"Final Score: {score}", True, WHITE)
+        replay_hint = font.render("Refresh page to replay", True, GREEN)
+        screen.blit(game_over_text, (WIDTH//2 - 80, HEIGHT//2 - 40))
+        screen.blit(score_text, (WIDTH//2 - 90, HEIGHT//2))
+        screen.blit(replay_hint, (WIDTH//2 - 120, HEIGHT//2 + 40))
+
+    pygame.display.flip()
+`;
+
+    const logStatus = document.getElementById("status");
+    logStatus.textContent = "Loading Pygame Web...";
+
+    const pyMod = await init({python: pythonCode});
+    pyMod.runMain();
+  </script>
+</body>
+</html>￼Enter
